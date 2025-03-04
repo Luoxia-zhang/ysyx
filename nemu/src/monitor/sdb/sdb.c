@@ -17,13 +17,15 @@
 #include <cpu/cpu.h>
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <memory/paddr.h>
 #include "sdb.h"
 
+#define MAX_LINE_LEN 4096
 static int is_batch_mode = false;
 
 void init_regex();
 void init_wp_pool();
-
+void expr_test();
 /* We use the `readline' library to provide more flexibility to read from stdin. */
 static char* rl_gets() {
   static char *line_read = NULL;
@@ -49,10 +51,23 @@ static int cmd_c(char *args) {
 
 
 static int cmd_q(char *args) {
+	nemu_state.state = NEMU_QUIT;
   return -1;
 }
 
 static int cmd_help(char *args);
+
+static int cmd_si(char *args);
+
+static int cmd_info(char *args);
+
+static int cmd_x(char *args);
+
+static int cmd_p(char *args);
+
+static int cmd_w(char *args);
+
+static int cmd_d(char *args);
 
 static struct {
   const char *name;
@@ -64,6 +79,12 @@ static struct {
   { "q", "Exit NEMU", cmd_q },
 
   /* TODO: Add more commands */
+	{ "si", "Let the programexcute N instuctions and then suspend the excution,while the N is not given,the default value is 1", cmd_si},
+	{"info","Print your register infomation or watchpoint infomation",cmd_info},
+	{"x","output the N of the value of EXPR in the 0x",cmd_x},
+	{"p","function valid",cmd_p},
+	{"w","set the watchpoint",cmd_w},
+	{"d","delete the watchpoint",cmd_d},
 
 };
 
@@ -92,9 +113,108 @@ static int cmd_help(char *args) {
   return 0;
 }
 
+static int cmd_si(char *args)
+{
+	int n;
+	if (args == NULL){
+		n = 1;
+	}
+	else sscanf(args,"%d",&n);
+	cpu_exec(n);
+	return 0;
+}
+
+static int cmd_info(char *args)
+{
+	if(args == NULL){
+		printf("no args\n");
+	}
+	else if (strcmp(args,"r")==0)
+	{
+		isa_reg_display();
+	}
+	else if (strcmp(args,"w")==0)
+	{
+		info_watchpoint();
+	}
+
+
+	return 0;
+}
+
+static int cmd_x(char *args)
+{
+	if (args == NULL)
+	{
+		printf("wrong\n");
+		return 0;
+	}
+	else {
+		char* n = strtok(args," ");
+		char* baseaddr = strtok(NULL," ");
+		int len = 0;
+		paddr_t addr = 0;
+		sscanf(n,"%d",&len);
+		sscanf(baseaddr,"%x",&addr);
+		for (int i=0; i<len;i++)
+		{
+			printf("%x\n",paddr_read(addr,4));
+			addr=addr + 4;
+		}
+		return 0;
+	}
+
+}
+
+static int cmd_p(char *args){
+  bool success=true;
+  int32_t res = expr(args, &success);
+  if (!success)
+  {
+    printf("invalid expression\n");
+  } else
+  {
+    printf("%d\n", res);
+  }
+  return 0;
+}
+
+//设置监视点
+static int cmd_w(char *args){
+ if (!args)
+  {
+    printf("Usage: w EXPR\n");
+    return 0;
+  }
+  bool success=true;
+  int32_t res = expr(args, &success);
+  if (!success)
+	{
+    printf("invalid expression\n");
+  }
+  else
+  {
+    wp_set(args, res);
+  }
+  return 0;
+}
+
+//删除序列号为N的监视点
+static int cmd_d(char *args){
+  char *arg = strtok(NULL, "");
+  if (!arg) {
+    printf("Usage: d N\n");
+    return 0;
+  }
+  int no = strtol(arg, NULL, 10);
+  wp_remove(no);
+  return 0;
+}
+
 void sdb_set_batch_mode() {
   is_batch_mode = true;
 }
+
 
 void sdb_mainloop() {
   if (is_batch_mode) {
@@ -134,10 +254,46 @@ void sdb_mainloop() {
   }
 }
 
+/*
+void expr_test(){
+    FILE *fp = fopen("/home/luoxia/ysyx-workbench/nemu/tools/gen-expr/build/input", "r");
+    if (!fp) {
+        perror("Failed to open input file");
+        return ;
+    }
+
+    char line[MAX_LINE_LEN];
+    int total = 0, passed = 0;
+    while (fgets(line, sizeof(line), fp)) {  
+        int expected;
+        char expr_str[MAX_LINE_LEN];
+        if (sscanf(line, "%d %[^\n]", &expected, expr_str) != 2) {
+            fprintf(stderr, "Invalid line: %s", line);
+            continue;
+        }
+        total++;
+
+        bool success = false;
+        word_t result = expr(expr_str, &success);
+
+        if (!success) {
+            printf("Parse failed: Expr '%s'\n", expr_str);
+        } else if (result == expected) {
+            passed++;
+        } else {
+            printf("Result mismatch: Expr '%s' -> Expected %d, Got %d\n", expr_str, expected, result);
+        }
+    }
+    fclose(fp);
+
+    printf("Passed %d/%d tests.\n", passed, total);
+		return ;
+}	
+*/
 void init_sdb() {
   /* Compile the regular expressions. */
   init_regex();
-
+	//expr_test();
   /* Initialize the watchpoint pool. */
   init_wp_pool();
 }

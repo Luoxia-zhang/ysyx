@@ -20,4 +20,12 @@
 
 word_t expr(char *e, bool *success);
 
+
+void info_watchpoint();
+void wp_set(char *args, int32_t res);
+
+void wp_remove(int no);
+
+void wp_difftest();
+void break_point();
 #endif

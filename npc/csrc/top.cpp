@@ -22,7 +22,7 @@ int main(){
 	top = new Vtop;
 	contextp->traceEverOn(true);
 	top->trace(tfp,0);
-	tfp->open("dump.vcd");
+	tfp->open("vcd/top.vcd");
 	
   top->y=0b00;  top->x0=0b11; top->x1=0b01; top->x2=0b00;  top->x3=0b10; step_and_dump_wave();
                 top->x0=0b10; top->x1=0b01; top->x2=0b01;  top->x3=0b00; step_and_dump_wave();

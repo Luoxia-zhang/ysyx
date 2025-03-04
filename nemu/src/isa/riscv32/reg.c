@@ -24,8 +24,23 @@ const char *regs[] = {
 };
 
 void isa_reg_display() {
+    int length =  sizeof(regs) / sizeof(regs[0]);
+    for(int i = 0  ; i < length ; i ++)
+        printf("reg$%s ---> %d\n",regs[i], cpu.gpr[i]);
 }
 
 word_t isa_reg_str2val(const char *s, bool *success) {
+  if (s[0] == '$') {
+    s++;  // 跳过 '$' 符号
+  }
+   for (int i = 0; i < 32; i++) {
+    if (strcmp(s, regs[i]) == 0) {
+      *success = true;
+      printf("The REG is %s \n",regs[i]);
+      return cpu.gpr[i];
+    }
+  }
+  printf("can't find the reg\n");
+  *success = false;
   return 0;
 }
